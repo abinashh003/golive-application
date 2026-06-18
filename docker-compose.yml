@@ -43,7 +43,7 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: livestream
       DB_PORT: 5432
-      JWT_SECRET: change-this-to-a-long-random-string
+      JWT_SECRET: mysecretkey123abc
       CORS_ORIGIN: "*"
       REDIS_HOST: redis
       REDIS_PORT: 6379
