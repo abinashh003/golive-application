@@ -1,0 +1,33 @@
+# Optional: only needed if you also want to support OBS-style external
+# encoders pushing RTMP, in addition to the browser-based "Go Live"
+# WebRTC feature. Skip applying this file if you don't need it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streaming-deployment
+  namespace: livestream
+  labels:
+    app: streaming
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streaming
+  template:
+    metadata:
+      labels:
+        app: streaming
+    spec:
+      containers:
+        - name: streaming-container
+          image: REPLACE_WITH_ECR_IMAGE_URI:latest
+          ports:
+            - containerPort: 1935
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

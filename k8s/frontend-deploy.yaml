@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: livestream
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend-container
+          # Built with VITE_API_URL / VITE_SOCKET_URL baked in at image
+          # build time (see frontend/Dockerfile build args + the CI
+          # workflow) -- Vite env vars are compiled into the JS bundle,
+          # they can't be changed at runtime via a ConfigMap the way the
+          # backend's env vars can.
+          image: REPLACE_WITH_ECR_IMAGE_URI:latest
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"

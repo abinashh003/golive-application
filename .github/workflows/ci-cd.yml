@@ -1,0 +1,115 @@
+name: Build and Deploy
+
+# GitOps flow: this workflow only builds images, pushes them to ECR, and
+# commits the new image tag into k8s/*.yaml. It never talks to the
+# cluster directly -- ArgoCD watches this repo and applies the change.
+# Required GitHub secrets (Settings -> Secrets and variables -> Actions):
+#   AWS_ACCESS_KEY_ID
+#   AWS_SECRET_ACCESS_KEY
+#   AWS_ACCOUNT_ID
+#   AWS_REGION            (e.g. us-east-1)
+#   ECR_BACKEND_REPO      (e.g. livestream-backend)
+#   ECR_FRONTEND_REPO     (e.g. livestream-frontend)
+#   VITE_API_URL          (e.g. https://your-domain.com/api)
+#   VITE_SOCKET_URL       (e.g. https://your-domain.com)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/ci-cd.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: vars
+        run: echo "image_tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPO: ${{ secrets.ECR_BACKEND_REPO }}
+          TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          docker build -t "$REGISTRY/$REPO:$TAG" -t "$REGISTRY/$REPO:latest" ./backend
+          docker push "$REGISTRY/$REPO:$TAG"
+          docker push "$REGISTRY/$REPO:latest"
+
+      - name: Build and push frontend image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPO: ${{ secrets.ECR_FRONTEND_REPO }}
+          TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          docker build \
+            --build-arg VITE_API_URL="${{ secrets.VITE_API_URL }}" \
+            --build-arg VITE_SOCKET_URL="${{ secrets.VITE_SOCKET_URL }}" \
+            -t "$REGISTRY/$REPO:$TAG" -t "$REGISTRY/$REPO:latest" ./frontend
+          docker push "$REGISTRY/$REPO:$TAG"
+          docker push "$REGISTRY/$REPO:latest"
+
+  update-manifests:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR (for registry URL)
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update image tags in k8s manifests
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          BACKEND_REPO: ${{ secrets.ECR_BACKEND_REPO }}
+          FRONTEND_REPO: ${{ secrets.ECR_FRONTEND_REPO }}
+          TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          sed -i "s|^\(\s*image:\s*\).*|\1${REGISTRY}/${BACKEND_REPO}:${TAG}|" k8s/backend-deploy.yaml
+          sed -i "s|^\(\s*image:\s*\).*|\1${REGISTRY}/${FRONTEND_REPO}:${TAG}|" k8s/frontend-deploy.yaml
+
+      - name: Commit and push updated manifests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/backend-deploy.yaml k8s/frontend-deploy.yaml
+          git diff --cached --quiet && echo "No manifest changes" && exit 0
+          git commit -m "ci: deploy image ${{ needs.build-and-push.outputs.image_tag }}"
+          git push

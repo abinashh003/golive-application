@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: livestream
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: livestream
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streaming-service
+  namespace: livestream
+spec:
+  selector:
+    app: streaming
+  ports:
+    - name: rtmp
+      protocol: TCP
+      port: 1935
+      targetPort: 1935
+    - name: hls
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

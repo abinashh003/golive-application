@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: livestream-ingress
+  namespace: livestream
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    # Socket.IO needs the WebSocket upgrade headers passed through.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+    # Not strictly required since the backend shares room/session state
+    # through Redis (see backend/src/websocket/socketHandler.js), but
+    # pinning a client to one pod for the life of a socket connection
+    # avoids unnecessary cross-pod relay hops.
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "livestream-affinity"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 80
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 80
+          - path: /hls
+            pathType: Prefix
+            backend:
+              service:
+                name: streaming-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
