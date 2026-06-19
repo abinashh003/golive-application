@@ -103,9 +103,19 @@ export function useBroadcaster({ streamId }) {
     }
 
     function handleAnswer({ viewerId, sdp }) {
-      const pc = peersRef.current.get(viewerId);
-      if (pc) pc.setRemoteDescription(new RTCSessionDescription(sdp));
-    }
+  console.log("ANSWER RECEIVED from viewer:", viewerId);
+
+  const pc = peersRef.current.get(viewerId);
+
+  if (!pc) {
+    console.log("No peer found for viewer:", viewerId);
+    return;
+  }
+
+  pc.setRemoteDescription(new RTCSessionDescription(sdp))
+    .then(() => console.log("Remote description set"))
+    .catch(err => console.error("setRemoteDescription failed:", err));
+}
 
     function handleIce({ senderId, candidate }) {
       const pc = peersRef.current.get(senderId);
