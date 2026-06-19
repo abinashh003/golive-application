@@ -15,9 +15,6 @@ const ICE_SERVERS = [
   }
 ];
 
-// Manages the broadcaster's local media (camera and/or screen share) and
-// fans it out to every connected viewer via one RTCPeerConnection each.
-// The signaling server only relays SDP/ICE; media flows browser-to-browser.
 export function useBroadcaster({ streamId }) {
   const [localStream, setLocalStream] = useState(null);
   const [cameraOn, setCameraOn] = useState(false);
@@ -25,13 +22,11 @@ export function useBroadcaster({ streamId }) {
   const [viewerCount, setViewerCount] = useState(0);
   const [isLive, setIsLive] = useState(false);
 
-  const peersRef = useRef(new Map()); // viewerId -> RTCPeerConnection
+  const peersRef = useRef(new Map());
   const cameraStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
   const composedStreamRef = useRef(null);
 
-  // Rebuild the single outbound MediaStream from whichever sources are active.
-  // Screen share video takes priority if both are on; camera audio always included.
   const recomposeStream = useCallback(() => {
     const tracks = [];
     const videoSource = screenStreamRef.current || cameraStreamRef.current;
@@ -51,12 +46,14 @@ export function useBroadcaster({ streamId }) {
     composedStreamRef.current = newStream;
     setLocalStream(newStream);
 
-    // Replace the outgoing video/audio track on every existing peer connection
-    // without renegotiating the whole connection.
     peersRef.current.forEach((pc) => {
       const senders = pc.getSenders();
+
       tracks.forEach((track) => {
-        const sender = senders.find((s) => s.track && s.track.kind === track.kind);
+        const sender = senders.find(
+          (s) => s.track && s.track.kind === track.kind
+        );
+
         if (sender) {
           sender.replaceTrack(track);
         } else {
@@ -70,13 +67,14 @@ export function useBroadcaster({ streamId }) {
 
   const createPeerForViewer = useCallback((viewerId) => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    pc.onconnectionstatechange = () => {
-  console.log("BROADCASTER STATE:", pc.connectionState);
-};
 
-pc.oniceconnectionstatechange = () => {
-  console.log("BROADCASTER ICE:", pc.iceConnectionState);
-};
+    pc.onconnectionstatechange = () => {
+      console.log("BROADCASTER STATE:", pc.connectionState);
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log("BROADCASTER ICE:", pc.iceConnectionState);
+    };
 
     if (composedStreamRef.current) {
       composedStreamRef.current.getTracks().forEach((track) => {
@@ -97,12 +95,19 @@ pc.oniceconnectionstatechange = () => {
     return pc;
   }, []);
 
-  const sendOfferToViewer = useCallback(async (viewerId) => {
-    const pc = createPeerForViewer(viewerId);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit("webrtc-offer", { viewerId, sdp: pc.localDescription });
-  }, [createPeerForViewer]);
+  const sendOfferToViewer = useCallback(
+    async (viewerId) => {
+      const pc = createPeerForViewer(viewerId);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socket.emit("webrtc-offer", {
+        viewerId,
+        sdp: pc.localDescription
+      });
+    },
+    [createPeerForViewer]
+  );
 
   useEffect(() => {
     function handleViewerJoined({ viewerId }) {
@@ -111,27 +116,33 @@ pc.oniceconnectionstatechange = () => {
     }
 
     function handleAnswer({ viewerId, sdp }) {
-  console.log("ANSWER RECEIVED:", viewerId);
+      console.log("ANSWER RECEIVED:", viewerId);
 
-  const pc = peersRef.current.get(viewerId);
+      const pc = peersRef.current.get(viewerId);
 
-  if (!pc) {
-    console.log("Peer not found for:", viewerId);
-    return;
-  }
+      if (!pc) {
+        console.log("Peer not found for:", viewerId);
+        return;
+      }
 
-  pc.setRemoteDescription(new RTCSessionDescription(sdp))
-    .then(() => console.log("Remote description set successfully"))
-    .catch((err) => console.error("setRemoteDescription failed:", err));
-}
+      pc.setRemoteDescription(new RTCSessionDescription(sdp))
+        .then(() => console.log("Remote description set successfully"))
+        .catch((err) =>
+          console.error("setRemoteDescription failed:", err)
+        );
+    }
 
     function handleIce({ senderId, candidate }) {
       const pc = peersRef.current.get(senderId);
-      if (pc && candidate) pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+
+      if (pc && candidate) {
+        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+      }
     }
 
     function handleViewerLeft({ viewerId }) {
       const pc = peersRef.current.get(viewerId);
+
       if (pc) pc.close();
       peersRef.current.delete(viewerId);
     }
@@ -155,24 +166,19 @@ pc.oniceconnectionstatechange = () => {
     };
   }, [sendOfferToViewer]);
 
-  const goLive = useCallback((explicitStreamId) => {
-  const idToUse = explicitStreamId ?? streamId;
+  const goLive = useCallback(
+    (explicitStreamId) => {
+      const idToUse = explicitStreamId ?? streamId;
 
-  if (
-    !composedStreamRef.current ||
-    composedStreamRef.current.getTracks().length === 0
-  ) {
-    alert("Turn on camera or screen share before going live");
-    return;
-  }
+      socket.emit("join-stream", {
+        streamId: idToUse,
+        asBroadcaster: true
+      });
 
-  socket.emit("join-stream", {
-    streamId: idToUse,
-    asBroadcaster: true
-  });
-
-  setIsLive(true);
-}, [streamId]);
+      setIsLive(true);
+    },
+    [streamId]
+  );
 
   const endLive = useCallback(() => {
     socket.emit("stream-ended");
@@ -206,6 +212,7 @@ pc.oniceconnectionstatechange = () => {
         video: true,
         audio: true
       });
+
       cameraStreamRef.current = stream;
       setCameraOn(true);
       recomposeStream();
@@ -230,7 +237,6 @@ pc.oniceconnectionstatechange = () => {
         audio: true
       });
 
-      // If the user stops sharing via the browser's native "Stop sharing" UI
       stream.getVideoTracks()[0].addEventListener("ended", () => {
         screenStreamRef.current = null;
         setScreenOn(false);
@@ -249,8 +255,11 @@ pc.oniceconnectionstatechange = () => {
   useEffect(() => {
     return () => {
       peersRef.current.forEach((pc) => pc.close());
+
       [cameraStreamRef, screenStreamRef].forEach((ref) => {
-        if (ref.current) ref.current.getTracks().forEach((t) => t.stop());
+        if (ref.current) {
+          ref.current.getTracks().forEach((t) => t.stop());
+        }
       });
     };
   }, []);
