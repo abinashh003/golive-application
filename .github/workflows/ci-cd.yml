@@ -13,14 +13,14 @@ name: Build and Deploy
 #   VITE_API_URL          (e.g. https://your-domain.com/api)
 #   VITE_SOCKET_URL       (e.g. https://your-domain.com)
 
-on:
-  push:
-    branches: [main]
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - ".github/workflows/ci-cd.yml"
-  workflow_dispatch: {}
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - "backend/**"
+#       - "frontend/**"
+#       - ".github/workflows/ci-cd.yml"
+#   workflow_dispatch: {}
 
 permissions:
   contents: write
