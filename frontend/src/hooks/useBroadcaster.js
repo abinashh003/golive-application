@@ -70,6 +70,13 @@ export function useBroadcaster({ streamId }) {
 
   const createPeerForViewer = useCallback((viewerId) => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    pc.onconnectionstatechange = () => {
+  console.log("BROADCASTER STATE:", pc.connectionState);
+};
+
+pc.oniceconnectionstatechange = () => {
+  console.log("BROADCASTER ICE:", pc.iceConnectionState);
+};
 
     if (composedStreamRef.current) {
       composedStreamRef.current.getTracks().forEach((track) => {
@@ -99,18 +106,24 @@ export function useBroadcaster({ streamId }) {
 
   useEffect(() => {
     function handleViewerJoined({ viewerId }) {
+      console.log("Viewer joined:", viewerId);
       sendOfferToViewer(viewerId);
     }
 
     function handleAnswer({ viewerId, sdp }) {
-  console.log("ANSWER RECEIVED from viewer:", viewerId);
+  console.log("ANSWER RECEIVED:", viewerId);
 
   const pc = peersRef.current.get(viewerId);
 
   if (!pc) {
-    console.log("No peer found for viewer:", viewerId);
+    console.log("Peer not found for:", viewerId);
     return;
   }
+
+  pc.setRemoteDescription(new RTCSessionDescription(sdp))
+    .then(() => console.log("Remote description set successfully"))
+    .catch((err) => console.error("setRemoteDescription failed:", err));
+}
 
   pc.setRemoteDescription(new RTCSessionDescription(sdp))
     .then(() => console.log("Remote description set"))
