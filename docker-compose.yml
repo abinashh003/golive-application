@@ -54,8 +54,8 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://localhost:5000/api
-        VITE_SOCKET_URL: http://localhost:5000
+        VITE_API_URL: http://13.221.43.243:5173/api
+        VITE_SOCKET_URL: http://13.221.43.243:5173
     container_name: livestream-frontend
     restart: unless-stopped
     depends_on:
