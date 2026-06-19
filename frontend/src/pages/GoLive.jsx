@@ -50,7 +50,7 @@ export default function GoLive() {
     try {
       const res = await api.post("/stream", { title, category, mode: "webrtc" });
       setStream(res.data);
-      goLive();
+      goLive(res.data.id);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to start stream");
     }

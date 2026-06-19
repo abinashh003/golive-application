@@ -125,8 +125,9 @@ export function useBroadcaster({ streamId }) {
     };
   }, [sendOfferToViewer]);
 
-  const goLive = useCallback(() => {
-    socket.emit("join-stream", { streamId, asBroadcaster: true });
+  const goLive = useCallback((explicitStreamId) => {
+    const idToUse = explicitStreamId ?? streamId;
+    socket.emit("join-stream", { streamId: idToUse, asBroadcaster: true });
     setIsLive(true);
   }, [streamId]);
 

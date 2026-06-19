@@ -43,7 +43,7 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: livestream
       DB_PORT: 5432
-      JWT_SECRET: mysecretkey123abc
+      JWT_SECRET: change-this-to-a-long-random-string
       CORS_ORIGIN: "*"
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -54,8 +54,8 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://13.216.216.131:5173/api
-        VITE_SOCKET_URL: http://13.216.216.131:5173
+        VITE_API_URL: http://localhost:5000/api
+        VITE_SOCKET_URL: http://localhost:5000
     container_name: livestream-frontend
     restart: unless-stopped
     depends_on:
