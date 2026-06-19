@@ -56,6 +56,7 @@ export default function LivePlayer({ streamId, mode, lastReaction }) {
         ref={videoRef}
         controls
         autoPlay
+        muted
         playsInline
         className="w-full h-full object-contain bg-black"
       />

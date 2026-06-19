@@ -125,11 +125,6 @@ pc.oniceconnectionstatechange = () => {
     .catch((err) => console.error("setRemoteDescription failed:", err));
 }
 
-  pc.setRemoteDescription(new RTCSessionDescription(sdp))
-    .then(() => console.log("Remote description set"))
-    .catch(err => console.error("setRemoteDescription failed:", err));
-}
-
     function handleIce({ senderId, candidate }) {
       const pc = peersRef.current.get(senderId);
       if (pc && candidate) pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
