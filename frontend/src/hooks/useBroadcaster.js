@@ -138,10 +138,23 @@ export function useBroadcaster({ streamId }) {
   }, [sendOfferToViewer]);
 
   const goLive = useCallback((explicitStreamId) => {
-    const idToUse = explicitStreamId ?? streamId;
-    socket.emit("join-stream", { streamId: idToUse, asBroadcaster: true });
-    setIsLive(true);
-  }, [streamId]);
+  const idToUse = explicitStreamId ?? streamId;
+
+  if (
+    !composedStreamRef.current ||
+    composedStreamRef.current.getTracks().length === 0
+  ) {
+    alert("Turn on camera or screen share before going live");
+    return;
+  }
+
+  socket.emit("join-stream", {
+    streamId: idToUse,
+    asBroadcaster: true
+  });
+
+  setIsLive(true);
+}, [streamId]);
 
   const endLive = useCallback(() => {
     socket.emit("stream-ended");
