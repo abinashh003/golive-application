@@ -1,7 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import socket from "../services/socket";
 
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  {
+    urls: "turn:openrelay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject"
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject"
+  }
+];
 
 // Connects this viewer to the broadcaster's peer connection and exposes
 // the incoming MediaStream once tracks arrive.
@@ -80,6 +92,7 @@ export function useViewer({ streamId }) {
       socket.off("broadcaster-offline", handleBroadcasterOffline);
       socket.off("broadcaster-online", handleBroadcasterOnline);
       socket.off("viewer-count", handleViewerCount);
+      socket.emit("leave-stream");
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;

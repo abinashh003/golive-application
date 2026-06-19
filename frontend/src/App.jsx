@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import StreamPage from "./pages/StreamPage";
 import Browse from "./pages/Browse";
 import GoLive from "./pages/GoLive";
+import Profile from "./pages/Profile";
 
 function Layout({ children }) {
   return (
@@ -43,6 +44,16 @@ function App() {
             <Layout>
               <ProtectedRoute>
                 <GoLive />
+              </ProtectedRoute>
+            </Layout>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <Layout>
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             </Layout>
           }

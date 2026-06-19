@@ -1,8 +1,20 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api
+      .get("/stream/me")
+      .then((res) => setData(res.data))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
@@ -12,23 +24,39 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-zinc-900 p-6 rounded-xl">
           <p className="text-sm text-gray-500">Status</p>
-          <p className="text-xl font-semibold mt-1">Offline</p>
+          <p className="text-xl font-semibold mt-1">
+            {loading ? "..." : data?.isLive ? "Live" : "Offline"}
+          </p>
         </div>
         <div className="bg-zinc-900 p-6 rounded-xl">
-          <p className="text-sm text-gray-500">Last viewers</p>
-          <p className="text-xl font-semibold mt-1">—</p>
+          <p className="text-sm text-gray-500">Stream title</p>
+          <p className="text-xl font-semibold mt-1">
+            {loading ? "..." : data?.hasStream ? data.title : "No stream yet"}
+          </p>
         </div>
         <div className="bg-zinc-900 p-6 rounded-xl">
           <p className="text-sm text-gray-500">Followers</p>
-          <p className="text-xl font-semibold mt-1">—</p>
+          <p className="text-xl font-semibold mt-1">
+            {loading ? "..." : data?.followerCount ?? 0}
+          </p>
         </div>
       </div>
 
-      <Link to="/go-live">
-        <button className="px-6 py-3 bg-red-600 rounded-xl font-semibold">
-          Go Live
-        </button>
-      </Link>
+      <div className="flex gap-3">
+        <Link to="/go-live">
+          <button className="px-6 py-3 bg-red-600 rounded-xl font-semibold">
+            Go Live
+          </button>
+        </Link>
+
+        {data?.isLive && data?.id && (
+          <Link to={`/stream/${data.id}`}>
+            <button className="px-6 py-3 bg-zinc-800 rounded-xl font-semibold">
+              View My Stream
+            </button>
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

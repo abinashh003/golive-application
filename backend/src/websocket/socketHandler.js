@@ -231,24 +231,54 @@ module.exports = function (io) {
       }
     });
 
-    // ---------- Cleanup ----------
-    socket.on("disconnect", async () => {
+    // Shared cleanup used by both an explicit "leave-stream" (component
+    // unmount, navigating away, switching streams) and an actual socket
+    // disconnect (tab closed, network drop). Without this being callable
+    // from both places, a viewer who navigates away without closing the
+    // tab/socket would never be removed from the room -- the viewer count
+    // would only ever go down when the whole browser tab closes.
+    async function leaveCurrentStream() {
       if (!joinedStreamId) return;
+      const leftStreamId = joinedStreamId;
+      const wasBroadcaster = role === "broadcaster";
 
-      if (role === "broadcaster") {
-        await roomStore.clearBroadcaster(joinedStreamId, socket.id);
-        io.to(`stream:${joinedStreamId}`).emit("broadcaster-offline");
+      if (wasBroadcaster) {
+        await roomStore.clearBroadcaster(leftStreamId, socket.id);
+        io.to(`stream:${leftStreamId}`).emit("broadcaster-offline");
       } else {
-        await roomStore.removeViewer(joinedStreamId, socket.id);
-        const broadcasterSocketId = await roomStore.getBroadcaster(joinedStreamId);
+        await roomStore.removeViewer(leftStreamId, socket.id);
+        const broadcasterSocketId = await roomStore.getBroadcaster(leftStreamId);
         if (broadcasterSocketId) {
           io.to(broadcasterSocketId).emit("viewer-left", { viewerId: socket.id });
         }
       }
 
-      const count = await roomStore.viewerCount(joinedStreamId);
-      io.to(`stream:${joinedStreamId}`).emit("viewer-count", count);
-      await roomStore.isEmpty(joinedStreamId);
+      const count = await roomStore.viewerCount(leftStreamId);
+
+      // Send the updated count to everyone still in the room, AND
+      // explicitly to this socket too, since it's about to leave the
+      // room and the broadcast above won't reach it after that.
+      io.to(`stream:${leftStreamId}`).emit("viewer-count", count);
+      socket.emit("viewer-count", count);
+
+      socket.leave(`stream:${leftStreamId}`);
+      await roomStore.isEmpty(leftStreamId);
+
+      // Reset local state so this same socket can cleanly join a
+      // different stream afterward (e.g. viewer browses to another
+      // live stream without reloading the page).
+      joinedStreamId = null;
+      role = null;
+    }
+
+    // ---------- Explicit leave (called on component unmount / navigation) ----------
+    socket.on("leave-stream", () => {
+      leaveCurrentStream().catch((err) => console.error("leave-stream error:", err.message));
+    });
+
+    // ---------- Cleanup on actual disconnect (tab closed, network drop) ----------
+    socket.on("disconnect", () => {
+      leaveCurrentStream().catch((err) => console.error("disconnect cleanup error:", err.message));
     });
   });
 };

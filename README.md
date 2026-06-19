@@ -3,6 +3,88 @@
 Live streaming from the browser with camera, screen share, chat, emoji
 reactions, polls, and a follow system. No OBS required.
 
+## Changelog — Bugs Found and Fixed During Real-World Testing
+
+This app was tested live on an EC2 instance with two separate browsers/
+laptops as broadcaster and viewer. Several real bugs surfaced that don't
+show up when testing alone on one machine. Here's exactly what was wrong
+and how each was fixed:
+
+### 1. nginx crash loop (`host not found in upstream "streaming"`)
+**Symptom:** frontend container kept restarting, nothing loaded at all.
+**Cause:** `frontend/nginx.conf` proxied `/hls/` to a `streaming` upstream
+that only exists if you run the optional `--profile rtmp` compose profile.
+Since that service wasn't running, nginx couldn't resolve the hostname at
+startup and refused to start.
+**Fix:** removed the `/hls/` block from `nginx.conf` entirely, since the
+browser-based Go Live feature doesn't need it. (If you ever turn on the
+RTMP/OBS path, this block can be added back.)
+
+### 2. Signup/login failing with `ERR_CONNECTION_REFUSED`
+**Symptom:** browser console showed requests going to
+`http://localhost:5000/api/...` instead of the real server.
+**Cause:** `VITE_API_URL` / `VITE_SOCKET_URL` are baked into the frontend's
+JS bundle *at Docker build time* (Vite env vars aren't runtime-configurable
+like the backend's are) -- if `docker-compose.yml`'s build args still said
+`localhost` when the image was built, that's what shipped in the bundle
+permanently, no matter what you set afterward.
+**Fix:** set real values in `docker-compose.yml`:
+```yaml
+args:
+  VITE_API_URL: http://YOUR_IP:5173/api
+  VITE_SOCKET_URL: http://YOUR_IP:5173
+```
+Note both point at port **5173** (where nginx/the frontend lives, which
+proxies to the backend internally) -- not port 5000 directly.
+
+### 3. Viewer count never decreasing (only fixed by closing the tab)
+**Symptom:** viewer count kept climbing and never went back down unless
+you closed the browser tab entirely.
+**Cause:** the app uses one persistent Socket.IO connection per browser tab
+(so chat/login state survives page navigation). The server only removed a
+viewer from a stream's room on socket *disconnect* -- but navigating away
+from a stream page, or just leaving it open, never disconnects the socket.
+There was no "I'm leaving this stream" event at all.
+**Fix:** added an explicit `leave-stream` socket event
+(`backend/src/websocket/socketHandler.js`), emitted by the viewer hook on
+component unmount (`frontend/src/hooks/useViewer.js`). This correctly
+removes the viewer from the room and updates the count immediately,
+without needing to close the tab. Verified with an automated test that
+confirms the count goes from 1 -> 0 while the socket stays connected.
+
+### 4. Dashboard showing fake placeholder data
+**Symptom:** Dashboard always showed "Offline", "—", "—" no matter what.
+**Cause:** the Dashboard page was originally built with hardcoded
+placeholder values and was never wired to real data.
+**Fix:** added a new `GET /api/stream/me` endpoint
+(`backend/src/controllers/streamController.js`) returning the logged-in
+user's actual stream status, title, and live follower count. Dashboard
+now fetches and displays this for real.
+
+### 5. Clicking the profile avatar did nothing
+**Symptom:** no response when clicking your own avatar in the navbar.
+**Cause:** there was no profile page or click handler at all -- it was
+just a static `<span>`.
+**Fix:** added `frontend/src/pages/Profile.jsx` and linked the navbar
+avatar to `/profile`.
+
+### 6. Viewer's video stuck loading on a different network/laptop
+**Symptom:** worked fine viewing from a second tab on the same laptop, but
+a genuinely separate device/network saw a permanently loading, greyed-out
+player.
+**Cause:** WebRTC was only configured with a STUN server, no TURN server.
+STUN alone often can't establish a peer-to-peer connection when one side
+is behind a restrictive NAT/firewall (which an EC2 instance's networking
+frequently is) -- the two browsers can discover each other's public
+address but still fail to actually open a direct media path.
+**Fix (temporary, for testing only):** added a free public TURN server
+(Open Relay Project) to `frontend/src/hooks/useViewer.js` and
+`useBroadcaster.js` to confirm this was the cause. **This free TURN
+server is rate-limited and not meant for real production use** -- once
+you're ready to harden this for real users, the correct fix is running
+your own `coturn` TURN server (in Docker Compose for now, or as a
+Kubernetes deployment later alongside the rest of the infra).
+
 ## Architecture & Workflow
 
 ```

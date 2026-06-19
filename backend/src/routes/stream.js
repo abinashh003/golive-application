@@ -4,12 +4,14 @@ const {
   endStream,
   updateStream,
   getStream,
+  getMyStream,
   listLive
 } = require("../controllers/streamController");
 const { follow, unfollow } = require("../controllers/followController");
 const { requireAuth, optionalAuth } = require("../middleware/authMiddleware");
 
 router.get("/live", listLive);
+router.get("/me", requireAuth, getMyStream);
 router.post("/", requireAuth, createStream);
 router.get("/:id", optionalAuth, getStream);
 router.patch("/:id", requireAuth, updateStream);

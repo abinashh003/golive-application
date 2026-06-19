@@ -29,13 +29,15 @@ export default function Navbar() {
             <Link to="/dashboard" className="text-gray-300 hover:text-white">
               Dashboard
             </Link>
-            <span
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: user.avatarColor || "#9333ea" }}
-              title={user.name}
-            >
-              {user.name?.[0]?.toUpperCase()}
-            </span>
+            <Link to="/profile">
+              <span
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold hover:opacity-80 cursor-pointer"
+                style={{ backgroundColor: user.avatarColor || "#9333ea" }}
+                title={user.name}
+              >
+                {user.name?.[0]?.toUpperCase()}
+              </span>
+            </Link>
             <button onClick={handleLogout} className="text-gray-400 hover:text-white">
               Logout
             </button>

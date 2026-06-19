@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import socket from "../services/socket";
 
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  {
+    urls: "turn:openrelay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject"
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject"
+  }
+];
 
 // Manages the broadcaster's local media (camera and/or screen share) and
 // fans it out to every connected viewer via one RTCPeerConnection each.

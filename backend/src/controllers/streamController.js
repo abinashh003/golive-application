@@ -155,6 +155,50 @@ exports.getStream = async (req, res) => {
 };
 
 // List currently live streams, for a "browse" view.
+// Returns the current user's own stream status + follower count, for the
+// Dashboard. Unlike getStream, this is looked up by user id, not stream id
+// -- the Dashboard doesn't know its own stream id until one exists.
+exports.getMyStream = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT id, title, category, is_live, mode
+       FROM streams WHERE user_id = $1
+       ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+
+    const followerCount = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM follows WHERE broadcaster_id = $1`,
+      [userId]
+    );
+
+    if (!result.rows.length) {
+      return res.json({
+        hasStream: false,
+        isLive: false,
+        followerCount: followerCount.rows[0].count
+      });
+    }
+
+    const stream = result.rows[0];
+
+    res.json({
+      hasStream: true,
+      id: stream.id,
+      title: stream.title,
+      category: stream.category,
+      isLive: stream.is_live,
+      mode: stream.mode,
+      followerCount: followerCount.rows[0].count
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch dashboard data" });
+  }
+};
+
 exports.listLive = async (req, res) => {
   try {
     const result = await pool.query(
