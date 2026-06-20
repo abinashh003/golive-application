@@ -63,9 +63,6 @@ services:
     ports:
       - "5173:80"
 
-  # Optional: legacy RTMP -> HLS media server, only needed if you also want
-  # to support OBS-style external encoders pushing to /live alongside the
-  # browser-based WebRTC "Go Live" feature.
   streaming:
     build: ./streaming
     container_name: livestream-rtmp
