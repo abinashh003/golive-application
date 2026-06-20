@@ -3,19 +3,15 @@ import socket from "../services/socket";
 
 const ICE_SERVERS = [
   {
-    urls: [
-      "stun:stun.l.google.com:19302",
-      "stun:stun1.l.google.com:19302"
-    ]
+    urls: "stun:13.221.43.243:3478"
   },
   {
     urls: [
-      "turn:openrelay.metered.ca:80?transport=tcp",
-      "turn:openrelay.metered.ca:443?transport=tcp",
-      "turns:openrelay.metered.ca:443?transport=tcp"
+      "turn:13.221.43.243:3478?transport=udp",
+      "turn:13.221.43.243:3478?transport=tcp"
     ],
-    username: "openrelayproject",
-    credential: "openrelayproject"
+    username: "test",
+    credential: "test123"
   }
 ];
 
