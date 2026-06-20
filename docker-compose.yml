@@ -54,7 +54,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://44.208.35.20 :5173/api
+        VITE_API_URL: http://44.208.35.20:5173/api
         VITE_SOCKET_URL: http://44.208.35.20:5000
     container_name: livestream-frontend
     restart: unless-stopped
