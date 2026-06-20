@@ -2,14 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import socket from "../services/socket";
 
 const ICE_SERVERS = [
-  { urls: "stun:stun.l.google.com:19302" },
   {
-    urls: "turn:openrelay.metered.ca:80",
-    username: "openrelayproject",
-    credential: "openrelayproject"
+    urls: [
+      "stun:stun.l.google.com:19302",
+      "stun:stun1.l.google.com:19302"
+    ]
   },
   {
-    urls: "turn:openrelay.metered.ca:443",
+    urls: [
+      "turn:openrelay.metered.ca:80?transport=tcp",
+      "turn:openrelay.metered.ca:443?transport=tcp",
+      "turns:openrelay.metered.ca:443?transport=tcp"
+    ],
     username: "openrelayproject",
     credential: "openrelayproject"
   }
