@@ -3,12 +3,12 @@ import socket from "../services/socket";
 
 const ICE_SERVERS = [
   {
-    urls: "stun:13.221.43.243:3478"
+    urls: "stun:44.208.35.20:3478"
   },
   {
     urls: [
-      "turn:13.221.43.243:3478?transport=udp",
-      "turn:13.221.43.243:3478?transport=tcp"
+      "turn:44.208.35.20:3478?transport=udp",
+      "turn:44.208.35.20:3478?transport=tcp"
     ],
     username: "test",
     credential: "test123"
