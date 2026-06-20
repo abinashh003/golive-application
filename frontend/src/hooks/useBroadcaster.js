@@ -82,18 +82,23 @@ export function useBroadcaster({ streamId }) {
       });
     }
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("webrtc-ice-candidate", {
-          targetId: viewerId,
-          candidate: event.candidate
-        });
-      }
-    };
+pc.onicecandidate = (event) => {
+  if (event.candidate) {
+    socket.emit("webrtc-ice-candidate", {
+      targetId: viewerId,
+      candidate: event.candidate
+    });
+  }
+};
 
-    peersRef.current.set(viewerId, pc);
-    return pc;
-  }, []);
+peersRef.current.set(viewerId, pc);
+
+console.log(
+  "Tracks added to peer:",
+  pc.getSenders().map((s) => s.track?.kind)
+);
+
+return pc; }, []);
 
   const sendOfferToViewer = useCallback(
     async (viewerId) => {
