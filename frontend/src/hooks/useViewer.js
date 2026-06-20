@@ -19,7 +19,7 @@ const ICE_SERVERS = [
 // the incoming MediaStream once tracks arrive.
 export function useViewer({ streamId }) {
   const [remoteStream, setRemoteStream] = useState(null);
-  const [broadcasterOnline, setBroadcasterOnline] = useState(null); // null = unknown yet
+  const [broadcasterOnline, setBroadcasterOnline] = useState(null);
   const [viewerCount, setViewerCount] = useState(0);
   const pcRef = useRef(null);
 
@@ -27,17 +27,26 @@ export function useViewer({ streamId }) {
     if (!streamId) return;
 
     function createPeer(broadcasterId) {
-  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-  pc.onconnectionstatechange = () => {
-    console.log("VIEWER STATE:", pc.connectionState);
-  };
+      pc.onconnectionstatechange = () => {
+        console.log("VIEWER STATE:", pc.connectionState);
+      };
 
-  pc.oniceconnectionstatechange = () => {
-    console.log("VIEWER ICE:", pc.iceConnectionState);
-  };
+      pc.oniceconnectionstatechange = () => {
+        console.log("VIEWER ICE:", pc.iceConnectionState);
+      };
 
-  pcRef.current = pc;
+      pcRef.current = pc;
+
+      // THIS WAS MISSING
+      pc.ontrack = (event) => {
+        console.log("TRACK RECEIVED");
+        console.log("Streams:", event.streams);
+        console.log("Tracks:", event.streams[0]?.getTracks());
+
+        setRemoteStream(event.streams[0]);
+      };
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -52,25 +61,34 @@ export function useViewer({ streamId }) {
     }
 
     async function handleOffer({ sdp, broadcasterId }) {
-  console.log("OFFER RECEIVED");
+      console.log("OFFER RECEIVED");
 
-  const pc = createPeer(broadcasterId);
-  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  socket.emit("webrtc-answer", { broadcasterId, sdp: pc.localDescription });
-  setBroadcasterOnline(true);
-}
+      const pc = createPeer(broadcasterId);
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      socket.emit("webrtc-answer", {
+        broadcasterId,
+        sdp: pc.localDescription
+      });
+
+      setBroadcasterOnline(true);
+    }
 
     function handleIce({ senderId, candidate }) {
       if (pcRef.current && candidate) {
-        pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+        pcRef.current
+          .addIceCandidate(new RTCIceCandidate(candidate))
+          .catch(() => {});
       }
     }
 
     function handleBroadcasterOffline() {
       setBroadcasterOnline(false);
       setRemoteStream(null);
+
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
@@ -99,7 +117,9 @@ export function useViewer({ streamId }) {
       socket.off("broadcaster-offline", handleBroadcasterOffline);
       socket.off("broadcaster-online", handleBroadcasterOnline);
       socket.off("viewer-count", handleViewerCount);
+
       socket.emit("leave-stream");
+
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
